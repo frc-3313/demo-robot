@@ -1,11 +1,17 @@
 package org.usfirst.frc.team3313.robot;
 
+import com.revrobotics.ColorMatch;
+import com.revrobotics.ColorMatchResult;
+import com.revrobotics.ColorSensorV3;
+
 import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.util.Color;
 
 //Import properly this time 
 /**
@@ -32,6 +38,22 @@ public class Robot extends TimedRobot {
 	ShuffleboardTab tab = Shuffleboard.getTab("Drive");
 	NetworkTableEntry SBmaxSpeed = tab.add("Drive Speed", DEFAULT_MOVEMENT_SPEED).getEntry();
 	NetworkTableEntry SBmaxTurn = tab.add("Turn Speed", DEFAULT_TURN_SPEED).getEntry();
+	NetworkTableEntry SBRed = tab.add("Red", 0).getEntry();
+	NetworkTableEntry SBGreen = tab.add("Green", 0).getEntry();
+	NetworkTableEntry SBBlue = tab.add("Blue", 0).getEntry();
+	NetworkTableEntry SBColor = tab.add("Detected Color", "Unknown").getEntry();
+	NetworkTableEntry SBConfidence = tab.add("Confidence", 0).getEntry();
+
+	// Color Sensor
+	I2C.Port i2cPort = I2C.Port.kOnboard;
+	ColorSensorV3 m_colorSensor = new ColorSensorV3(i2cPort);
+
+	private final ColorMatch colorMatcher = new ColorMatch();
+
+	private final Color matchBlueTarget = ColorMatch.makeColor(0.143, 0.427, 0.429);
+	private final Color matchGreenTarget = ColorMatch.makeColor(0.160, 0.581, 0.258);
+	private final Color matchRedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
+	private final Color matchYellowTarget = ColorMatch.makeColor(0.316, 0.562, 0.121);
 
 	// Accelerated Movement
 	double incrementSpeed = 0; // DO NOT TOUCH
@@ -62,6 +84,9 @@ public class Robot extends TimedRobot {
 		// joystick or not, meaning
 		// End //max movement on joystick is the same as the maximum speed versus
 		// deadzone
+		colorMatcher.addColorMatch(matchRedTarget);
+		colorMatcher.addColorMatch(matchGreenTarget);
+		colorMatcher.addColorMatch(matchBlueTarget);
 	}
 
 	/**
@@ -82,6 +107,32 @@ public class Robot extends TimedRobot {
 		// defaultAuto);
 	}
 
+	@Override
+	public void robotPeriodic() {
+		Color detectedColor = m_colorSensor.getColor();
+
+		String colorString;
+		ColorMatchResult match = colorMatcher.matchClosestColor(detectedColor);
+
+		if (match.color == matchBlueTarget) {
+			colorString = "Blue";
+		} else if (match.color == matchRedTarget) {
+			colorString = "Red";
+		} else if (match.color == matchGreenTarget) {
+			colorString = "Green";
+		} else if (match.color == matchYellowTarget) {
+			colorString = "Yellow";
+		} else {
+			colorString = "Unknown";
+		}
+
+		SBRed.setDouble(detectedColor.red);
+		SBGreen.setDouble(detectedColor.green);
+		SBBlue.setDouble(detectedColor.blue);
+		SBColor.setString(colorString);
+		SBConfidence.setDouble(match.confidence);
+	}
+
 	/**
 	 * This function is called periodically during autonomous
 	 */
@@ -94,8 +145,10 @@ public class Robot extends TimedRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
+		// Color Sensor
+
 		// Drive
-		advancedDrive(joy1.getX(), joy1.getRawAxis(5));
+		// advancedDrive(joy1.getX(), joy1.getRawAxis(5));
 
 		// Shooter
 		// Button/Power directory: Right Bumper=100% Power (add as needed for minimal
